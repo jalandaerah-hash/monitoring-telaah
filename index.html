@@ -28,24 +28,41 @@
 
     <div class="container">
         <h1>Dashboard Monitoring Kelengkapan Usulan (Live Data)</h1>
+
         <div id="rekap-utama">
             <h2>Rekapitulasi Usulan Diterima per Balai</h2>
             <div id="rekap-balai-container" class="loader">Mengambil data dari server SITIA...</div>
         </div>
+
         <hr style="margin: 40px 0;">
+
         <div id="filter-usulan">
             <h2>Daftar Usulan Diterima (dengan Filter)</h2>
+            
             <div class="filter-container">
                 <label for="filter-direktorat">Direktorat:</label>
-                <select id="filter-direktorat"><option value="">Semua Direktorat</option></select>
+                <select id="filter-direktorat">
+                    <option value="">Semua Direktorat</option>
+                </select>
+                
                 <label for="filter-provinsi">Provinsi:</label>
-                <select id="filter-provinsi"><option value="">Semua Provinsi</option></select>
+                <select id="filter-provinsi">
+                    <option value="">Semua Provinsi</option>
+                </select>
+
                 <button id="reset-filter">Reset Filter</button>
             </div>
+
             <table id="tabel-usulan">
                 <thead>
                     <tr>
-                        <th>No</th><th>Nama Paket</th><th>Balai</th><th>Provinsi</th><th>Direktorat</th><th>File Telaah</th><th>Berita Acara</th>
+                        <th>No</th>
+                        <th>Nama Paket</th>
+                        <th>Balai</th>
+                        <th>Provinsi</th>
+                        <th>Direktorat</th>
+                        <th>File Telaah</th>
+                        <th>Berita Acara</th>
                     </tr>
                 </thead>
                 <tbody id="tabel-usulan-body">
@@ -57,10 +74,15 @@
 
     <script>
         // ===================================================================================
-        // PERBAIKAN FINAL: MENGGUNAKAN PROXY ALTERNATIF (ALLORIGINS)
+        // PERUBAHAN UNTUK MENGATASI ERROR CORS
         // ===================================================================================
-        const targetApiUrl = 'https://sitia.binamarga.pu.go.id/api/excel_service/usulan_inpres?thang=2025&api_key=QLJioD54aiMnSLLn806VpoW3w3gl9hur&type=json';
-        const DATA_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetApiUrl)}`;
+
+        // URL API yang asli sekarang dijadikan komentar (tidak aktif)
+        // const DATA_URL = 'https://sitia.binamarga.pu.go.id/api/excel_service/usulan_inpres?thang=2025&api_key=QLJioD54aiMnSLLn806VpoW3w3gl9hur&type=json';
+        
+        // URL Proxy sekarang diaktifkan untuk mengatasi masalah keamanan browser (CORS)
+        const PROXY_URL = 'https://corsproxy.io/?';
+        const DATA_URL = PROXY_URL + encodeURIComponent('https://sitia.binamarga.pu.go.id/api/excel_service/usulan_inpres?thang=2025&api_key=QLJioD54aiMnSLLn806VpoW3w3gl9hur&type=json');
 
 
         document.addEventListener('DOMContentLoaded', fetchData);
@@ -68,14 +90,12 @@
         async function fetchData() {
             try {
                 const response = await fetch(DATA_URL);
-                if (!response.ok) { throw new Error(`Gagal mengambil data dari server: ${response.statusText}`); }
+                if (!response.ok) {
+                    throw new Error(`Gagal mengambil data dari server: ${response.statusText}`);
+                }
+                const allData = await response.json();
                 
-                // Proxy AllOrigins membungkus respons dalam 'contents'
-                const data = await response.json();
-                const allData = JSON.parse(data.contents);
-
-                if (!allData) { throw new Error("Format data dari server tidak sesuai setelah melewati proxy."); }
-                
+                // Filter berdasarkan 'progres_kompetensi' yang bernilai 'Diterima'
                 const dataDiterima = allData.filter(item => item.progres_kompetensi === 'Diterima');
 
                 displayRekapPerBalai(dataDiterima);
@@ -102,16 +122,28 @@
             }, {});
 
             if (Object.keys(groupedByBalai).length === 0) {
-                container.innerHTML = "Tidak ada data usulan yang diterima."; return;
+                container.innerHTML = "Tidak ada data usulan yang diterima.";
+                return;
             }
 
             let html = '';
             const sortedBalaiKeys = Object.keys(groupedByBalai).sort();
+
             for (const balaiName of sortedBalaiKeys) {
                 const usulanList = groupedByBalai[balaiName];
-                html += `<div class="balai-group"><p class="balai-title">${balaiName}</p><table><thead><tr><th>Nama Paket</th><th>File Telaah</th><th>Berita Acara</th></tr></thead><tbody>`;
+                html += `<div class="balai-group">
+                            <p class="balai-title">${balaiName}</p>
+                            <table>
+                                <thead>
+                                    <tr><th>Nama Paket</th><th>File Telaah</th><th>Berita Acara</th></tr>
+                                </thead>
+                                <tbody>`;
                 usulanList.forEach(usulan => {
-                    html += `<tr><td>${usulan.nama_paket}</td><td>${formatStatus(usulan.file_telaah_ada)}</td><td>${formatStatus(usulan.berita_acara_ada)}</td></tr>`;
+                    html += `<tr>
+                                <td>${usulan.nama_paket}</td>
+                                <td>${formatStatus(usulan.file_telaah_ada)}</td>
+                                <td>${formatStatus(usulan.berita_acara_ada)}</td>
+                             </tr>`;
                 });
                 html += `</tbody></table></div>`;
             }
@@ -126,8 +158,12 @@
             const uniqueDirektorat = [...new Set(data.map(item => item.direktorat_pengampu).filter(Boolean))].sort();
             const uniqueProvinsi = [...new Set(data.map(item => item.provinsi).filter(Boolean))].sort();
 
-            uniqueDirektorat.forEach(dir => { direktoratSelect.innerHTML += `<option value="${dir}">${dir}</option>`; });
-            uniqueProvinsi.forEach(prov => { provinsiSelect.innerHTML += `<option value="${prov}">${prov}</option>`; });
+            uniqueDirektorat.forEach(dir => {
+                direktoratSelect.innerHTML += `<option value="${dir}">${dir}</option>`;
+            });
+            uniqueProvinsi.forEach(prov => {
+                provinsiSelect.innerHTML += `<option value="${prov}">${prov}</option>`;
+            });
 
             const applyFilters = () => {
                 const selectedDirektorat = direktoratSelect.value;
@@ -153,17 +189,30 @@
         function renderTableBody(data) {
             const tableBody = document.getElementById('tabel-usulan-body');
             if (data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Data tidak ditemukan.</td></tr>`; return;
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Data tidak ditemukan.</td></tr>`;
+                return;
             }
+
             let html = '';
             data.forEach(item => {
-                html += `<tr><td>${item.no}</td><td>${item.nama_paket}</td><td>${item.balai}</td><td>${item.provinsi}</td><td>${item.direktorat_pengampu}</td><td>${formatStatus(item.file_telaah_ada)}</td><td>${formatStatus(item.berita_acara_ada)}</td></tr>`;
+                html += `<tr>
+                            <td>${item.no}</td>
+                            <td>${item.nama_paket}</td>
+                            <td>${item.balai}</td>
+                            <td>${item.provinsi}</td>
+                            <td>${item.direktorat_pengampu}</td>
+                            <td>${formatStatus(item.file_telaah_ada)}</td>
+                            <td>${formatStatus(item.berita_acara_ada)}</td>
+                         </tr>`;
             });
             tableBody.innerHTML = html;
         }
         
         function formatStatus(statusText) {
-            return (statusText === 'Ada') ? `<span class="status-ok">✔ Ada</span>` : `<span class="status-no">✖ Tidak Ada</span>`;
+            if (statusText === 'Ada') {
+                return `<span class="status-ok">✔ Ada</span>`;
+            }
+            return `<span class="status-no">✖ Tidak Ada</span>`;
         }
     </script>
 </body>
